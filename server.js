@@ -1,44 +1,48 @@
 const express = require('express');
 const axios = require('axios');
-const path = require('path');
 const bodyParser = require('body-parser');
-const app = express();
+const path = require('path');
 
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// User-Agent list
 const uaList = [
-  "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/105.0.5195.136 Mobile Safari/537.36",
-  "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 Chrome/87.0.4280.141 Mobile Safari/537.36",
-  "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 Chrome/106.0.5249.126 Mobile Safari/537.36"
+  "Mozilla/5.0 (Linux; Android 10; Wildfire E Lite)...",
+  "Mozilla/5.0 (Linux; Android 11; KINGKONG 5 Pro)...",
+  "Mozilla/5.0 (Linux; Android 11; G91 Pro)..."
 ];
 
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname)));
-
-function parseCookies(cookieString) {
-  const cookies = {};
-  cookieString.split(';').forEach(item => {
-    const [key, value] = item.split('=');
-    if (key && value) cookies[key.trim()] = value.trim();
-  });
-  return cookies;
-}
-
-async function extractToken(cookie, ua) {
+// Extract token
+const extractToken = async (cookie, ua) => {
   try {
-    const response = await axios.get('https://business.facebook.com/business_locations', {
+    const cookieObj = cookie.split('; ').reduce((acc, curr) => {
+      const [key, value] = curr.split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+
+    const response = await axios.get("https://business.facebook.com/business_locations", {
       headers: {
-        'User-Agent': ua,
-        'Referer': 'https://www.facebook.com/'
+        "User-Agent": ua,
+        "Referer": "https://www.facebook.com/"
       },
-      headersCookie: cookie
+      headersCookie: cookie, // backup
     });
-    const tokenMatch = response.data.match(/(EAAG\w+)/);
-    return tokenMatch ? tokenMatch[1] : null;
-  } catch (e) {
+
+    const match = response.data.match(/(EAAG\w+)/);
+    return match ? match[1] : null;
+  } catch {
     return null;
   }
-}
+};
 
-app.post('/api/share', async (req, res) => {
+// Share endpoint
+app.post("/api/share", async (req, res) => {
   const { cookie, link, limit } = req.body;
   if (!cookie || !link || !limit) {
     return res.json({ status: false, message: "Missing input." });
@@ -47,34 +51,41 @@ app.post('/api/share', async (req, res) => {
   const ua = uaList[Math.floor(Math.random() * uaList.length)];
   const token = await extractToken(cookie, ua);
   if (!token) {
-    return res.json({ status: false, message: "Token extraction failed. Check cookie." });
+    return res.json({ status: false, message: "Token extraction failed." });
   }
 
   let success = 0;
   for (let i = 0; i < limit; i++) {
     try {
-      const response = await axios.post(`https://graph.facebook.com/v18.0/me/feed`, null, {
+      const response = await axios.post("https://graph.facebook.com/v18.0/me/feed", null, {
         params: {
-          link: link,
+          link,
           access_token: token,
           published: 0
         },
-        headers: { "User-Agent": ua },
-        headersCookie: cookie
+        headers: { "User-Agent": ua }
       });
 
-      if (response.data && response.data.id) {
-        success++;
-      } else {
-        break;
-      }
-    } catch (err) {
+      if (response.data.id) success++;
+      else break;
+    } catch {
       break;
     }
   }
 
-  res.json({ status: true, message: `✅ Shared ${success} times.`, success_count: success });
+  res.json({
+    status: true,
+    message: `✅ Shared ${success} times.`,
+    success_count: success
+  });
 });
 
-const port = process.env.PORT || 5000;
-app.listen(port, () => console.log(`✅ Server running at http://localhost:${port}`));
+// 🟢 Route fallback to frontend
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running: http://localhost:${PORT}`);
+});
