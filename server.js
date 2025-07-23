@@ -1,47 +1,40 @@
-const express = require('express');
-const axios = require('axios');
-const bodyParser = require('body-parser');
-const path = require('path');
+import express from 'express';
+import bodyParser from 'body-parser';
+import axios from 'axios';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Middleware
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// User-Agent list
 const uaList = [
   "Mozilla/5.0 (Linux; Android 10; Wildfire E Lite)...",
   "Mozilla/5.0 (Linux; Android 11; KINGKONG 5 Pro)...",
   "Mozilla/5.0 (Linux; Android 11; G91 Pro)..."
 ];
 
-// Extract token
 const extractToken = async (cookie, ua) => {
   try {
-    const cookieObj = cookie.split('; ').reduce((acc, curr) => {
-      const [key, value] = curr.split('=');
-      acc[key] = value;
-      return acc;
-    }, {});
-
-    const response = await axios.get("https://business.facebook.com/business_locations", {
+    const cookieMap = Object.fromEntries(cookie.split("; ").map(c => c.split("=")));
+    const res = await axios.get("https://business.facebook.com/business_locations", {
       headers: {
         "User-Agent": ua,
         "Referer": "https://www.facebook.com/"
       },
-      headersCookie: cookie, // backup
+      headersCookie: cookie,
     });
 
-    const match = response.data.match(/(EAAG\w+)/);
-    return match ? match[1] : null;
-  } catch {
+    const match = res.data.match(/EAAG\w+/);
+    return match ? match[0] : null;
+  } catch (err) {
+    console.error("Token extraction error:", err.message);
     return null;
   }
 };
 
-// Share endpoint
 app.post("/api/share", async (req, res) => {
   const { cookie, link, limit } = req.body;
   if (!cookie || !link || !limit) {
@@ -63,12 +56,14 @@ app.post("/api/share", async (req, res) => {
           access_token: token,
           published: 0
         },
-        headers: { "User-Agent": ua }
+        headers: {
+          "User-Agent": ua,
+          "Cookie": cookie
+        }
       });
 
       if (response.data.id) success++;
-      else break;
-    } catch {
+    } catch (e) {
       break;
     }
   }
@@ -80,12 +75,11 @@ app.post("/api/share", async (req, res) => {
   });
 });
 
-// 🟢 Route fallback to frontend
-app.get("*", (req, res) => {
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running: http://localhost:${PORT}`);
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`✅ Server running on http://localhost:${port}`);
 });
