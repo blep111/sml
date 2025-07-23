@@ -5,39 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Facebook Auto Share</title>
   <style>
-    body { background: #111; color: #0f0; font-family: monospace; text-align: center; }
-    input, button { padding: 10px; margin: 8px; width: 90%; max-width: 400px; }
-    #result { margin-top: 15px; }
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 20px;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: #111;
+      color: #0f0;
+      border: 1px solid #0f0;
+    }
+    #result {
+      margin-top: 15px;
+      color: #ff0;
+    }
   </style>
 </head>
 <body>
-  <h1>🔁 Facebook Auto Share</h1>
-  <input type="text" id="token" placeholder="Access Token" /><br />
-  <input type="text" id="link" placeholder="Facebook Post Link" /><br />
-  <input type="number" id="limit" placeholder="Number of Shares" /><br />
-  <button onclick="share()">Share</button>
+  <h2>🛠️ Facebook Auto Share Tool</h2>
+  <textarea id="cookie" placeholder="Paste Facebook Cookie"></textarea>
+  <input type="text" id="link" placeholder="Facebook Post Link" />
+  <input type="number" id="limit" placeholder="Share Count" />
+  <button onclick="share()">Submit</button>
   <div id="result"></div>
 
   <script>
     async function share() {
-      const token = document.getElementById('token').value;
-      const link = document.getElementById('link').value;
-      const limit = document.getElementById('limit').value;
-      const result = document.getElementById('result');
+      const cookie = document.getElementById("cookie").value.trim();
+      const link = document.getElementById("link").value.trim();
+      const limit = parseInt(document.getElementById("limit").value.trim());
 
-      result.innerText = '⏳ Sharing...';
+      const result = document.getElementById("result");
+      result.textContent = "Processing...";
 
       try {
-        const res = await fetch('/api/share', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, link, limit })
+        const res = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cookie, link, limit })
         });
-
         const data = await res.json();
-        result.innerText = data.message || '❌ Failed.';
-      } catch (err) {
-        result.innerText = '❌ Error occurred.';
+        result.textContent = data.message;
+      } catch (e) {
+        result.textContent = "❌ Request failed.";
       }
     }
   </script>
