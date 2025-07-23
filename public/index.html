@@ -3,68 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🟢 Facebook Auto Share</title>
+  <title>Facebook Auto Share</title>
   <style>
     body {
-      background-color: black;
+      background: #000;
+      color: #0f0;
       font-family: monospace;
-      color: lime;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      padding: 10px;
+      padding: 20px;
     }
-    h2 {
-      color: #00ff00;
-      text-shadow: 0 0 5px lime;
-    }
-    input, button {
-      background: black;
-      color: lime;
-      border: 1px solid lime;
-      padding: 10px;
-      margin: 8px;
-      width: 90%;
-      max-width: 500px;
-      font-size: 1em;
-    }
-    button {
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    button:hover {
-      background-color: lime;
-      color: black;
-    }
-    #status {
+    input, textarea, button {
+      width: 100%;
       margin-top: 10px;
-      font-size: 1em;
+      padding: 10px;
+      background: #111;
+      color: #0f0;
+      border: 1px solid #0f0;
+    }
+    #result {
+      margin-top: 15px;
+      color: #ff0;
     }
   </style>
 </head>
 <body>
-  <h2>🔁 Facebook Auto Share</h2>
-  <input type="text" id="cookie" placeholder="Enter Facebook Cookie (datr=...; sb=...; c_user=...; xs=...)" />
-  <input type="text" id="link" placeholder="Enter Facebook Post Link" />
-  <input type="number" id="limit" placeholder="Number of times to share" />
-  <button onclick="startShare()">Share Now</button>
-  <div id="status"></div>
+  <h2>🛠️ Facebook Auto Share Tool</h2>
+  <textarea id="cookie" placeholder="Paste Facebook Cookie"></textarea>
+  <input type="text" id="link" placeholder="Facebook Post Link" />
+  <input type="number" id="limit" placeholder="Share Count" />
+  <button onclick="share()">Submit</button>
+  <div id="result"></div>
 
   <script>
-    async function startShare() {
+    async function share() {
       const cookie = document.getElementById("cookie").value.trim();
       const link = document.getElementById("link").value.trim();
       const limit = parseInt(document.getElementById("limit").value.trim());
-      const status = document.getElementById("status");
-      
-      if (!cookie || !link || !limit) {
-        status.innerHTML = "❌ Please fill in all fields.";
-        return;
-      }
 
-      status.innerHTML = "⏳ Sharing in progress...";
+      const result = document.getElementById("result");
+      result.textContent = "Processing...";
 
       try {
         const res = await fetch("/api/share", {
@@ -72,15 +48,10 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cookie, link, limit })
         });
-
         const data = await res.json();
-        if (data.status) {
-          status.innerHTML = "✅ " + data.message;
-        } else {
-          status.innerHTML = "❌ " + data.message;
-        }
-      } catch (err) {
-        status.innerHTML = "❌ Request failed. Please check your server.";
+        result.textContent = data.message;
+      } catch (e) {
+        result.textContent = "❌ Request failed.";
       }
     }
   </script>
